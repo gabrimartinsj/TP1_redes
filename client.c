@@ -18,6 +18,32 @@ void sendAction(int socket, struct action *action) {
     send(socket, action, sizeof(struct action), 0);
 }
 
+// Função para imprimir o tabuleiro
+void printBoard(int board[4][4]) {
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            // Converte os valores do tabuleiro em caracteres para impressão
+            char cell;
+            switch (board[i][j]) {
+                case -1:
+                    cell = '*'; // Bomba
+                    break;
+                case -2:
+                    cell = '-'; // Célula oculta
+                    break;
+                case -3:
+                    cell = '>'; // Célula com flag
+                    break;
+                default:
+                    cell = '0' + board[i][j]; // Número de bombas na vizinhança
+                    break;
+            }
+            printf("%c\t", cell);
+        }
+        printf("\n");
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Uso correto: %s <endereço IP do servidor> <número de porta>\n", argv[0]);
@@ -95,8 +121,13 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // Enviar a ação ao servidor
+        // Enviar a ação ao servidor e receber o tabuleiro atualizado
         sendAction(clientSocket, &gameAction);
+        recv(clientSocket, &gameAction, sizeof(struct action), 0);
+
+        // Imprimir o tabuleiro atualizado
+        printf("Tabuleiro Atualizado:\n");
+        printBoard(gameAction.board);
     }
 
     // Fechar o socket do cliente
