@@ -4,16 +4,18 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
-// Estrutura para representar uma ação do cliente
-typedef struct {
+// Estrutura para representar uma ação do cliente, incluindo o estado atual do tabuleiro
+struct action {
     int type;
     int coordinates[2];
-} ClientAction;
+    int board[4][4];
+};
 
 // Função para enviar uma ação para o servidor
-void sendAction(int socket, ClientAction *action) {
-    send(socket, action, sizeof(ClientAction), 0);
+void sendAction(int socket, struct action *action) {
+    send(socket, action, sizeof(struct action), 0);
 }
 
 int main(int argc, char *argv[]) {
@@ -51,46 +53,55 @@ int main(int argc, char *argv[]) {
 
     // Loop principal do cliente
     while (1) {
-        printf("Opções:\n");
-        printf("1. Revelar célula\n");
-        printf("2. Marcar com flag\n");
-        printf("3. Remover flag\n");
-        printf("4. Sair\n");
+        // Adicionar uma nova variável para armazenar o comando do usuário
+        char command[10];
 
-        int choice;
-        scanf("%d", &choice);
+        // Solicitar o comando do usuário
+        printf("Digite um comando: ");
+        scanf("%s", command);
 
-        ClientAction action;
-        action.type = choice;
-
-        if (choice >= 1 && choice <= 3) {
+        // Configurar a ação do cliente de acordo com o comando
+        struct action gameAction;
+        if (strcmp(command, "start") == 0) {
+            // Enviar o comando "start" para o servidor
+            gameAction.type = 0;
+        } else if (strcmp(command, "reveal") == 0) {
+            // Enviar o comando "reveal" para o servidor, juntamente com as coordenadas da célula a ser revelada
             printf("Informe as coordenadas (linha coluna): ");
-            scanf("%d %d", &action.coordinates[0], &action.coordinates[1]);
-        } else if (choice == 4) {
-            action.coordinates[0] = -1;
-            action.coordinates[1] = -1;
+            scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+            gameAction.type = 1;
+        } else if (strcmp(command, "flag") == 0) {
+            // Enviar o comando "flag" para o servidor, juntamente com as coordenadas da célula a ser marcada com uma bandeira
+            printf("Informe as coordenadas (linha coluna): ");
+            scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+            gameAction.type = 2;
+        } else if (strcmp(command, "remove_flag") == 0) {
+            // Enviar o comando "remove_flag" para o servidor, juntamente com as coordenadas da célula a ter a bandeira removida
+            printf("Informe as coordenadas (linha coluna): ");
+            scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+            gameAction.type = 4;
+        } else if (strcmp(command, "state") == 0) {
+            // Enviar o comando "state" para o servidor
+            gameAction.type = 5;
+        } else if (strcmp(command, "reset") == 0) {
+            // Enviar o comando "reset" para o servidor
+            gameAction.type = 5;
+        } else if (strcmp(command, "exit") == 0) {
+            // Enviar o comando "exit" para o servidor
+            gameAction.type = 7;
         } else {
-            printf("Escolha inválida\n");
+            // Comando inválido
+            printf("Comando inválido\n");
             continue;
         }
 
-        // Enviar a ação para o servidor
-        sendAction(clientSocket, &action);
-
-        // Receber a resposta do servidor (atualização do tabuleiro)
-        int gameResult;
-        recv(clientSocket, &gameResult, sizeof(int), 0);
-
-        if (gameResult == 1) {
-            printf("Você venceu!\n");
-            // Realize ações adicionais após a vitória
-        } else if (gameResult == -1) {
-            printf("Você perdeu!\n");
-            // Realize ações adicionais após a derrota
-        }
+        // Enviar a ação ao servidor
+        sendAction(clientSocket, &gameAction);
     }
 
+    // Fechar o socket do cliente
     close(clientSocket);
 
-    return 0;
+    // Sair do programa
+    exit(0);
 }
