@@ -88,20 +88,27 @@ void sendBoard(int clientSocket, struct action *action) {
 int checkGameStatus(int board[4][4]) {
     int unrevealedCells = 0;
     int bombRevealed = 0;
+    int bombNumber = 0;
 
+
+    // Percorre todo o tabuleiro para checar o estado
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             if (board[i][j] == -2) {
-                unrevealedCells++;
+                unrevealedCells++; // Conta as células não reveladas
             } else if (board[i][j] == -1) {
-                bombRevealed = 1;
+                bombRevealed = 1; // Verifica se há alguma bomba revelada
+            }
+
+            if (referenceBoard[i][j] == -1) {
+                bombNumber++; // Conta a quantidade de bombas no tabuleiro de referência
             }
         }
     }
 
     if (bombRevealed) {
         return -1; // Uma bomba foi revelada (derrota)
-    } else if (unrevealedCells == 0 && !bombRevealed) {
+    } else if (unrevealedCells == bombNumber && !bombRevealed ) {
         return 1; // Todas as células não contendo bombas foram reveladas (vitória)
     } else {
         return 0; // O jogo continua
@@ -220,7 +227,7 @@ int main(int argc, char *argv[]) {
         perror("Erro ao aguardar por conexões");
         exit(1);
     }
-    
+
     while (1) {
         printf("Aguardando conexões...\n");
 
@@ -251,6 +258,7 @@ int main(int argc, char *argv[]) {
             if (gameStatus == 1) {
                 // Vitória
                 gameAction.type = 6;
+                copyReferenceBoard(&gameAction);
             } else if (gameStatus == -1) {
                 // Derrota
                 gameAction.type = 8;
