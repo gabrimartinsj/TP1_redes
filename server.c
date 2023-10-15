@@ -43,6 +43,7 @@ void initializeBoard(int reference[4][4], int board[4][4], const char *filename)
                 fprintf(stderr, "Erro ao ler o arquivo\n");
                 exit(1);
             }
+
             board[i][j] = -2;  // Inicialize o tabuleiro de ação com células ocultas
         }
     }
@@ -70,8 +71,10 @@ void printBoard(int board[4][4]) {
                     cell = '0' + board[i][j]; // Número de bombas na vizinhança
                     break;
             }
+
             printf("%c\t", cell);
         }
+
         printf("\n");
     }
 }
@@ -106,9 +109,10 @@ int checkGameStatus(int board[4][4]) {
 }
 
 // Função para processar a ação do cliente e atualizar o tabuleiro
-void processClientAction(int clientSocket, struct action *action, const char *filename) {
+int processClientAction(int clientSocket, struct action *action, const char *filename) {
     int row = action->coordinates[0];
     int col = action->coordinates[1];
+    int gameStatus = 0; // Inicializa o status do jogo
 
     switch (action->type) {
         case 0: // Start
@@ -116,46 +120,60 @@ void processClientAction(int clientSocket, struct action *action, const char *fi
             if (gameStarted == 0) {
                 gameStarted = 1;
                 initializeBoard(referenceBoard, action->board, filename); // Inicializa o tabuleiro com base no arquivo fornecido
+
                 printf("Starting new game\n");
-                sendBoard(clientSocket, action); // Envia o tabuleiro ao cliente
             }
+
             break;
         case 1: // Reveal
             // Revela a célula na posição (row, col)
             if (gameStarted == 1) {
                 action->board[row][col] = referenceBoard[row][col]; // Atualiza o tabuleiro de ação com base no tabuleiro de referência
-                sendBoard(clientSocket, action); // Envia o tabuleiro ao cliente
+
+                gameStatus = checkGameStatus(action->board); // Verifica o status do jogo
             }
+
             break;
         case 2: // Flag
             // Adiciona uma flag na célula na posição (row, col)
             if (gameStarted == 1) {
                 action->board[row][col] = -3;
-                sendBoard(clientSocket, action); // Envia o tabuleiro ao cliente
+
             }
+
             break;
-        case 3: // Remove flag
+        case 4: // Remove flag
             // Remove uma flag da célula na posição (row, col)
             if (gameStarted == 1) {
-                action->board[row][col] = -2;
-                sendBoard(clientSocket, action); // Envia o tabuleiro ao cliente
+                if (action->board[row][col] <= -2) {
+                    action->board[row][col] = -2;
+                }
             }
+
             break;
-        case 4: // Reset
+        case 5: // Reset
             // Reinicia o jogo, imprime "starting new game" e reseta o estado do jogo
-            gameStarted = 0;
+            gameStarted = 1;
             initializeBoard(referenceBoard, action->board, filename); // Inicializa o tabuleiro com base no arquivo fornecido
+
             printf("Starting new game\n");
-            sendBoard(clientSocket, action); // Envia o tabuleiro ao cliente
+
             break;
         case 7: // Exit
             // O jogador desconectou, imprime "client disconnected"
             printf("Client disconnected\n");
+
+            gameStatus = -2;
+            gameStarted = 0;
+            initializeBoard(referenceBoard, action->board, filename);
+
             break;
         default:
             // Ação inválida
             break;
     }
+
+    return gameStatus; // Retorna o status do jogo
 }
 
 int main(int argc, char *argv[]) {
@@ -172,16 +190,17 @@ int main(int argc, char *argv[]) {
     // Obtenha o número de porta
     int port = atoi(argv[2]);
 
-    // Inicialize o tabuleiro
+    // Inicia estruturas de conexão
+    int serverSocket, clientSocket;
+    struct sockaddr_in serverAddr, clientAddr;
+    socklen_t clientAddrLen = sizeof(clientAddr);
+
+    // Inicializa e exibe o tabuleiro
     struct action gameAction;
     initializeBoard(referenceBoard, gameAction.board, argv[4]);
     printBoard(referenceBoard);
 
     // Configuração do servidor
-    int serverSocket, clientSocket;
-    struct sockaddr_in serverAddr, clientAddr;
-    socklen_t clientAddrLen = sizeof(clientAddr);
-
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket == -1) {
         perror("Erro ao criar o socket do servidor");
@@ -201,39 +220,53 @@ int main(int argc, char *argv[]) {
         perror("Erro ao aguardar por conexões");
         exit(1);
     }
-
-    printf("Aguardando conexões...\n");
-
-    // Aguardando conexão de um cliente
-    clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen);
-    if (clientSocket == -1) {
-        perror("Erro ao aceitar conexão do cliente");
-        exit(1);
-    }
-
-    printf("Cliente conectado\n");
-
-    // Loop principal de comunicação
+    
     while (1) {
-        // Receba uma ação do cliente
-        recv(clientSocket, &gameAction, sizeof(struct action), 0);
+        printf("Aguardando conexões...\n");
 
-        // Processar a ação do cliente e atualizar o tabuleiro
-        processClientAction(clientSocket, &gameAction, argv[4]); // Passa o nome do arquivo como argumento
+        // Aguardando conexão de um cliente
+        clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen);
+        if (clientSocket == -1) {
+            perror("Erro ao aceitar conexão do cliente");
+            exit(1);
+        }
 
-        // Verificar condições de vitória ou derrota
-        int gameStatus = checkGameStatus(gameAction.board);
-        if (gameStatus == 1) {
-            printf("Vitória! O jogo terminou.\n");
-            break; // Encerrar o jogo
-        } else if (gameStatus == -1) {
-            printf("Derrota! O jogo terminou.\n");
-            break; // Encerrar o jogo
+        printf("Cliente conectado\n");
+
+        // Loop principal de comunicação
+        int gameStatus = 0; // Status do jogo
+        while (1) {
+            // Receba uma ação do cliente
+            recv(clientSocket, &gameAction, sizeof(struct action), 0);
+
+            // Processar a ação do cliente e atualizar o tabuleiro
+            gameStatus = processClientAction(clientSocket, &gameAction, argv[4]); // Obtém o status do jogo
+            if (gameAction.type == 7) {
+                // O cliente optou por "exit", então encerramos o loop de comunicação atual
+                close(clientSocket); // Fecha a conexão com o cliente
+                break;
+            }
+
+            // Enviar ação de acordo com o status do jogo
+            if (gameStatus == 1) {
+                // Vitória
+                gameAction.type = 6;
+            } else if (gameStatus == -1) {
+                // Derrota
+                gameAction.type = 8;
+                copyReferenceBoard(&gameAction);
+            } else {
+                // Atualização do tabuleiro
+                gameAction.type = 3;
+            }
+
+            sendBoard(clientSocket, &gameAction);
+
+            if (gameStatus == 1 || gameStatus == -1) {
+                printf("O jogo terminou.\n");
+            }
         }
     }
-
-    close(clientSocket);
-    close(serverSocket);
 
     return 0;
 }

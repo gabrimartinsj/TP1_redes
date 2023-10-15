@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
 
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(serverPort);
+
     if (inet_pton(AF_INET, serverIP, &serverAddr.sin_addr) <= 0) {
         perror("Endereço IP inválido");
         exit(1);
@@ -79,7 +80,10 @@ int main(int argc, char *argv[]) {
 
     // Loop principal do cliente
     while (1) {
-        // Adicionar uma nova variável para armazenar o comando do usuário
+        // Estrutura para armazenar a ação de jogo
+        struct action gameAction;
+
+        // Variável para armazenar o comando do usuário
         char command[10];
 
         // Solicitar o comando do usuário
@@ -87,7 +91,6 @@ int main(int argc, char *argv[]) {
         scanf("%s", command);
 
         // Configurar a ação do cliente de acordo com o comando
-        struct action gameAction;
         if (strcmp(command, "start") == 0) {
             // Enviar o comando "start" para o servidor
             gameAction.type = 0;
@@ -95,20 +98,44 @@ int main(int argc, char *argv[]) {
             // Enviar o comando "reveal" para o servidor, juntamente com as coordenadas da célula a ser revelada
             printf("Informe as coordenadas (linha coluna): ");
             scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+
+            // **Erro: Célula fora do range do tabuleiro**
+            if (gameAction.coordinates[0] < 0 || gameAction.coordinates[0] >= 4 || gameAction.coordinates[1] < 0 || gameAction.coordinates[1] >= 4) {
+                printf("error: invalid cell\n");
+                continue;
+            }
+
+            // **Erro: Revela uma célula já revelada**
+            if (gameAction.board[gameAction.coordinates[0]][gameAction.coordinates[1]] != -2) {
+                printf("error: cell already revealed\n");
+                continue;
+            }
+
             gameAction.type = 1;
         } else if (strcmp(command, "flag") == 0) {
             // Enviar o comando "flag" para o servidor, juntamente com as coordenadas da célula a ser marcada com uma bandeira
             printf("Informe as coordenadas (linha coluna): ");
             scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+
+            // **Erro: Flag em uma célula já marcada**
+            if (gameAction.board[gameAction.coordinates[0]][gameAction.coordinates[1]] == -3) {
+                printf("error: cell already has a flag\n");
+                continue;
+            }
+
+            // **Erro: Flag em uma célula revelada**
+            if (gameAction.board[gameAction.coordinates[0]][gameAction.coordinates[1]] != -2) {
+                printf("error: cannot insert flag in revealed cell\n");
+                continue;
+            }
+
             gameAction.type = 2;
         } else if (strcmp(command, "remove_flag") == 0) {
             // Enviar o comando "remove_flag" para o servidor, juntamente com as coordenadas da célula a ter a bandeira removida
             printf("Informe as coordenadas (linha coluna): ");
             scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+
             gameAction.type = 4;
-        } else if (strcmp(command, "state") == 0) {
-            // Enviar o comando "state" para o servidor
-            gameAction.type = 5;
         } else if (strcmp(command, "reset") == 0) {
             // Enviar o comando "reset" para o servidor
             gameAction.type = 5;
@@ -116,23 +143,43 @@ int main(int argc, char *argv[]) {
             // Enviar o comando "exit" para o servidor
             gameAction.type = 7;
         } else {
-            // Comando inválido
-            printf("Comando inválido\n");
+            // **Erro: Comando inválido**
+            printf("error: command not found\n");
             continue;
         }
 
-        // Enviar a ação ao servidor e receber o tabuleiro atualizado
-        sendAction(clientSocket, &gameAction);
-        recv(clientSocket, &gameAction, sizeof(struct action), 0);
+        int actionType = gameAction.type;
+        if (actionType == 7) {
+            // Enviar a ação ao servidor em caso de "exit"
+            sendAction(clientSocket, &gameAction);
+            // Fechar comunicação com o servidor
+            close(clientSocket);
 
-        // Imprimir o tabuleiro atualizado
-        printf("Tabuleiro Atualizado:\n");
-        printBoard(gameAction.board);
+            break;
+        } else {
+            // Enviar a ação ao servidor em quaisquer outros casos
+            sendAction(clientSocket, &gameAction);
+            // Receber a ação do servidor
+            recv(clientSocket, &gameAction, sizeof(struct action), 0);
+        }
+
+        // Processar a ação do servidor
+        actionType = gameAction.type;
+        if (actionType == 6) {
+            // Ação do tipo 6: Vitória
+            printf("Vitória! O jogo terminou.\n");
+            printBoard(gameAction.board);
+        } else if (actionType == 8) {
+            // Ação do tipo 8: Derrota
+            printf("Derrota! O jogo terminou.\n");
+            printBoard(gameAction.board);
+        } else {
+            // Ação do tipo 9: Atualização do tabuleiro
+            printf("Tabuleiro Atualizado:\n");
+            printBoard(gameAction.board);
+        }
     }
 
-    // Fechar o socket do cliente
-    close(clientSocket);
-
     // Sair do programa
-    exit(0);
+    return 0;
 }
