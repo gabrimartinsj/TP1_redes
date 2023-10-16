@@ -46,7 +46,7 @@ void printBoard(int board[4][4]) {
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        fprintf(stderr, "Uso correto: %s <endereço IP do servidor> <número de porta>\n", argv[0]);
+        fprintf(stderr, "Correct usage: %s <server IP address> <port number>\n", argv[0]);
         exit(1);
     }
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
     clientSocket = socket(isIPv6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
     if (clientSocket == -1) {
-        perror("Erro ao criar o socket do cliente");
+        perror("Error creating client socket");
         exit(1);
     }
 
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
         serverAddrIPv6->sin6_family = AF_INET6;
         serverAddrIPv6->sin6_port = htons(serverPort);
         if (inet_pton(AF_INET6, serverIP, &serverAddrIPv6->sin6_addr) <= 0) {
-            perror("Endereço IP inválido");
+            perror("Invalid IP address");
             exit(1);
         }
     } else {
@@ -79,17 +79,17 @@ int main(int argc, char *argv[]) {
         serverAddrIPv4->sin_family = AF_INET;
         serverAddrIPv4->sin_port = htons(serverPort);
         if (inet_pton(AF_INET, serverIP, &serverAddrIPv4->sin_addr) <= 0) {
-            perror("Endereço IP inválido");
+            perror("Invalid IP address");
             exit(1);
         }
     }
 
     if (connect(clientSocket, (struct sockaddr *)&serverAddr, isIPv6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in)) == -1) {
-        perror("Erro ao conectar ao servidor");
+        perror("Error connecting to server");
         exit(1);
     }
 
-    printf("Conectado ao servidor\n");
+    printf("Connected to the server\n");
 
     // Loop principal do cliente
     while (1) {
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
         char command[20];
 
         // Solicitar o comando do usuário
-        printf("Digite um comando: ");
+        printf("Enter a command: ");
         fgets(command, sizeof(command), stdin);
 
         // Remover o caractere de nova linha do final
@@ -194,15 +194,15 @@ int main(int argc, char *argv[]) {
         actionType = gameAction.type;
         if (actionType == 6) {
             // Ação do tipo 6: Vitória
-            printf("Vitória! O jogo terminou.\n");
+            printf("YOU WIN!\n");
             printBoard(gameAction.board);
         } else if (actionType == 8) {
             // Ação do tipo 8: Derrota
-            printf("Derrota! O jogo terminou.\n");
+            printf("GAME OVER!\n");
             printBoard(gameAction.board);
         } else {
             // Ação do tipo 9: Atualização do tabuleiro
-            printf("Tabuleiro Atualizado:\n");
+            printf("Updated Board:\n");
             printBoard(gameAction.board);
         }
     }

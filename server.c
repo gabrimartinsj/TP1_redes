@@ -32,7 +32,7 @@ void copyReferenceBoard(struct action *action) {
 void initializeBoard(int reference[4][4], int board[4][4], const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        perror("Erro ao abrir o arquivo");
+        perror("Error opening the file");
         exit(1);
     }
 
@@ -40,7 +40,7 @@ void initializeBoard(int reference[4][4], int board[4][4], const char *filename)
         for (int j = 0; j < 4; j++) {
             // Lê um valor do arquivo e o armazena na matriz do tabuleiro de referência e do tabuleiro de ação
             if (fscanf(file, "%d,", &reference[i][j]) != 1) {
-                fprintf(stderr, "Erro ao ler o arquivo\n");
+                fprintf(stderr, "Error reading the file\n");
                 exit(1);
             }
 
@@ -185,7 +185,7 @@ int processClientAction(int clientSocket, struct action *action, const char *fil
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        fprintf(stderr, "Uso: %s <v4/v6> <número_de_porta> -i <nome_do_arquivo.txt>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <v4/v6> <port_number> -i <filename.txt>\n", argv[0]);
         return 1;
     }
 
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
     // Configuração do servidor
     serverSocket = socket(isIPv6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
     if (serverSocket == -1) {
-        perror("Erro ao criar o socket do servidor");
+        perror("Error creating server socket");
         exit(1);
     }
 
@@ -228,26 +228,26 @@ int main(int argc, char *argv[]) {
     }
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
-        perror("Erro ao vincular o socket");
+        perror("Error binding socket");
         exit(1);
     }
 
     if (listen(serverSocket, 1) == -1) {
-        perror("Erro ao aguardar por conexões");
+        perror("Error waiting for connections");
         exit(1);
     }
 
     while (1) {
-        printf("Aguardando conexões...\n");
+        printf("Waiting for connections...\n");
 
         // Aguardando conexão de um cliente
         clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen);
         if (clientSocket == -1) {
-            perror("Erro ao aceitar conexão do cliente");
+            perror("Error accepting client connection");
             exit(1);
         }
 
-        printf("Cliente conectado\n");
+        printf("Connected client\n");
 
         // Loop principal de comunicação
         int gameStatus = 0; // Status do jogo
@@ -280,7 +280,7 @@ int main(int argc, char *argv[]) {
             sendBoard(clientSocket, &gameAction);
 
             if (gameStatus == 1 || gameStatus == -1) {
-                printf("O jogo terminou.\n");
+                printf("The game has ended.\n");
             }
         }
     }
