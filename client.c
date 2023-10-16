@@ -38,7 +38,7 @@ void printBoard(int board[4][4]) {
                     cell = '0' + board[i][j]; // Número de bombas na vizinhança
                     break;
             }
-            printf("%c\t", cell);
+            printf("%c\t\t", cell);
         }
         printf("\n");
     }
@@ -96,63 +96,77 @@ int main(int argc, char *argv[]) {
         // Estrutura para armazenar a ação de jogo
         struct action gameAction;
 
-        // Variável para armazenar o comando do usuário
-        char command[10];
+        // Variável para armazenar a entrada de comando do usuário
+        char command[20];
 
         // Solicitar o comando do usuário
         printf("Digite um comando: ");
-        scanf("%s", command);
+        fgets(command, sizeof(command), stdin);
+
+        // Remover o caractere de nova linha do final
+        size_t len = strlen(command);
+        if (len > 0 && command[len - 1] == '\n') {
+            command[len - 1] = '\0';
+        }
+
+        // Extrair o comando e os argumentos
+        char action[10];
+        int arg1, arg2;
+        int parsedArgs = sscanf(command, "%s %d,%d", action, &arg1, &arg2);
 
         // Configurar a ação do cliente de acordo com o comando
-        if (strcmp(command, "start") == 0) {
+        if (strcmp(action, "start") == 0) {
             // Enviar o comando "start" para o servidor
             gameAction.type = 0;
-        } else if (strcmp(command, "reveal") == 0) {
+        } else if (parsedArgs == 3 && strcmp(action, "reveal") == 0) {
             // Enviar o comando "reveal" para o servidor, juntamente com as coordenadas da célula a ser revelada
-            printf("Informe as coordenadas (linha coluna): ");
-            scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
 
             // **Erro: Célula fora do range do tabuleiro**
-            if (gameAction.coordinates[0] < 0 || gameAction.coordinates[0] >= 4 || gameAction.coordinates[1] < 0 || gameAction.coordinates[1] >= 4) {
+            if (arg1 < 0 || arg1 >= 4 || arg2 < 0 || arg2 >= 4) {
                 printf("error: invalid cell\n");
                 continue;
             }
 
             // **Erro: Revela uma célula já revelada**
-            if (gameAction.board[gameAction.coordinates[0]][gameAction.coordinates[1]] != -2) {
+            if (gameAction.board[arg1][arg2] != -2 && gameAction.board[arg1][arg2] -3) {
                 printf("error: cell already revealed\n");
                 continue;
             }
 
+            gameAction.coordinates[0] = arg1;
+            gameAction.coordinates[1] = arg2;
+
             gameAction.type = 1;
-        } else if (strcmp(command, "flag") == 0) {
+        } else if (parsedArgs == 3 && strcmp(action, "flag") == 0) {
             // Enviar o comando "flag" para o servidor, juntamente com as coordenadas da célula a ser marcada com uma bandeira
-            printf("Informe as coordenadas (linha coluna): ");
-            scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
 
             // **Erro: Flag em uma célula já marcada**
-            if (gameAction.board[gameAction.coordinates[0]][gameAction.coordinates[1]] == -3) {
+            if (gameAction.board[arg1][arg2] == -3) {
                 printf("error: cell already has a flag\n");
                 continue;
             }
 
             // **Erro: Flag em uma célula revelada**
-            if (gameAction.board[gameAction.coordinates[0]][gameAction.coordinates[1]] != -2) {
+            if (gameAction.board[arg1][arg2] != -2) {
                 printf("error: cannot insert flag in revealed cell\n");
                 continue;
             }
 
+            gameAction.coordinates[0] = arg1;
+            gameAction.coordinates[1] = arg2;
+
             gameAction.type = 2;
-        } else if (strcmp(command, "remove_flag") == 0) {
+        } else if (parsedArgs == 3 && strcmp(action, "remove_flag") == 0) {
             // Enviar o comando "remove_flag" para o servidor, juntamente com as coordenadas da célula a ter a bandeira removida
-            printf("Informe as coordenadas (linha coluna): ");
-            scanf("%d %d", &gameAction.coordinates[0], &gameAction.coordinates[1]);
+
+            gameAction.coordinates[0] = arg1;
+            gameAction.coordinates[1] = arg2;
 
             gameAction.type = 4;
-        } else if (strcmp(command, "reset") == 0) {
+        } else if (strcmp(action, "reset") == 0) {
             // Enviar o comando "reset" para o servidor
             gameAction.type = 5;
-        } else if (strcmp(command, "exit") == 0) {
+        } else if (strcmp(action, "exit") == 0) {
             // Enviar o comando "exit" para o servidor
             gameAction.type = 7;
         } else {

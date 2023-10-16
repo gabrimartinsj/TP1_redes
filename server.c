@@ -72,7 +72,7 @@ void printBoard(int board[4][4]) {
                     break;
             }
 
-            printf("%c\t", cell);
+            printf("%c\t\t", cell);
         }
 
         printf("\n");
