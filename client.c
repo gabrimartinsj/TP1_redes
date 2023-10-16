@@ -53,25 +53,38 @@ int main(int argc, char *argv[]) {
     const char *serverIP = argv[1];
     int serverPort = atoi(argv[2]);
 
+    // Verifica se é IPv4 ou IPv6
+    int isIPv6 = strchr(serverIP, ':') != NULL;
+
     // Configuração do cliente
     int clientSocket;
-    struct sockaddr_in serverAddr;
+    struct sockaddr_storage serverAddr;
 
-    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    clientSocket = socket(isIPv6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
     if (clientSocket == -1) {
         perror("Erro ao criar o socket do cliente");
         exit(1);
     }
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(serverPort);
-
-    if (inet_pton(AF_INET, serverIP, &serverAddr.sin_addr) <= 0) {
-        perror("Endereço IP inválido");
-        exit(1);
+    if (isIPv6) {
+        struct sockaddr_in6 *serverAddrIPv6 = (struct sockaddr_in6 *)&serverAddr;
+        serverAddrIPv6->sin6_family = AF_INET6;
+        serverAddrIPv6->sin6_port = htons(serverPort);
+        if (inet_pton(AF_INET6, serverIP, &serverAddrIPv6->sin6_addr) <= 0) {
+            perror("Endereço IP inválido");
+            exit(1);
+        }
+    } else {
+        struct sockaddr_in *serverAddrIPv4 = (struct sockaddr_in *)&serverAddr;
+        serverAddrIPv4->sin_family = AF_INET;
+        serverAddrIPv4->sin_port = htons(serverPort);
+        if (inet_pton(AF_INET, serverIP, &serverAddrIPv4->sin_addr) <= 0) {
+            perror("Endereço IP inválido");
+            exit(1);
+        }
     }
 
-    if (connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
+    if (connect(clientSocket, (struct sockaddr *)&serverAddr, isIPv6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in)) == -1) {
         perror("Erro ao conectar ao servidor");
         exit(1);
     }

@@ -189,9 +189,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (strcmp(argv[1], "v4") != 0 && strcmp(argv[1], "v6") != 0) {
-        fprintf(stderr, "Use 'v4' for IPv4 or 'v6' for IPv6\n");
-        return 1;
+    // Verifica se é IPv4 ou IPv6
+    int isIPv6 = 0;
+    if (strcmp(argv[1], "v6") == 0) {
+        isIPv6 = 1;
     }
 
     // Obtenha o número de porta
@@ -199,7 +200,7 @@ int main(int argc, char *argv[]) {
 
     // Inicia estruturas de conexão
     int serverSocket, clientSocket;
-    struct sockaddr_in serverAddr, clientAddr;
+    struct sockaddr_storage serverAddr, clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
 
     // Inicializa e exibe o tabuleiro
@@ -208,15 +209,23 @@ int main(int argc, char *argv[]) {
     printBoard(referenceBoard);
 
     // Configuração do servidor
-    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    serverSocket = socket(isIPv6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
     if (serverSocket == -1) {
         perror("Erro ao criar o socket do servidor");
         exit(1);
     }
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(port);
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    if (isIPv6) {
+        struct sockaddr_in6 *serverAddrIPv6 = (struct sockaddr_in6 *)&serverAddr;
+        serverAddrIPv6->sin6_family = AF_INET6;
+        serverAddrIPv6->sin6_port = htons(port);
+        serverAddrIPv6->sin6_addr = in6addr_any;
+    } else {
+        struct sockaddr_in *serverAddrIPv4 = (struct sockaddr_in *)&serverAddr;
+        serverAddrIPv4->sin_family = AF_INET;
+        serverAddrIPv4->sin_port = htons(port);
+        serverAddrIPv4->sin_addr.s_addr = INADDR_ANY;
+    }
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
         perror("Erro ao vincular o socket");
